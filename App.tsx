@@ -1,11 +1,10 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
-  ScrollView,
+  FlatList,
   Dimensions,
   StyleSheet,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
+  ViewToken,
 } from "react-native";
 
 interface CarouselProps<T> {
@@ -18,6 +17,8 @@ interface CarouselProps<T> {
   itemStyle?: object;
 }
 
+const { width } = Dimensions.get("window");
+
 const CarouselComponent = <T extends unknown>({
   items,
   onIndexChanged,
@@ -27,54 +28,53 @@ const CarouselComponent = <T extends unknown>({
   containerStyle,
   itemStyle,
 }: CarouselProps<T>) => {
-  const scrollViewRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const indexRef = useRef(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const scrollToIndex = useCallback((index: number) => {
-    if (scrollViewRef.current) {
-      const offsetX = index * Dimensions.get("window").width;
-      scrollViewRef.current.scrollTo({ x: offsetX, animated: true });
-    }
-  }, []);
-
+  // Autoplay
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    if (!autoplay || items.length <= 1) return;
 
-    if (autoplay) {
-      interval = setInterval(() => {
-        scrollToIndex((currentIndex + 1) % items.length);
-      }, autoplayInterval);
-    }
+    const interval = setInterval(() => {
+      indexRef.current = (indexRef.current + 1) % items.length;
+      flatListRef.current?.scrollToIndex({ index: indexRef.current, animated: true });
+      setCurrentIndex(indexRef.current);
+      onIndexChanged?.(indexRef.current);
+    }, autoplayInterval);
 
     return () => clearInterval(interval);
-  }, [currentIndex, items.length, autoplay, autoplayInterval, scrollToIndex]);
+  }, [autoplay, autoplayInterval, items.length, onIndexChanged]);
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x; // <-- add nativeEvent
-    const index = Math.round(contentOffsetX / Dimensions.get("window").width);
-    setCurrentIndex(index);
-    if (onIndexChanged) {
-      onIndexChanged(index);
+  // Handle manual scrolling
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems.length > 0) {
+      const index = viewableItems[0].index ?? 0;
+      indexRef.current = index;
+      setCurrentIndex(index);
+      onIndexChanged?.(index);
     }
-  };
+  }).current;
+
+  const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
+
   return (
     <View style={[styles.container, containerStyle]}>
-      <ScrollView
-        ref={scrollViewRef}
+      <FlatList
+        ref={flatListRef}
+        data={items}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) =>
-          handleScroll(event)
-        }
-        scrollEventThrottle={16}
-      >
-        {items.map((item, index) => (
-          <View key={index} style={[styles.item, itemStyle]}>
-            {renderItem(item, index)}
-          </View>
-        ))}
-      </ScrollView>
+        keyExtractor={(_, idx) => idx.toString()}
+        renderItem={({ item, index }) => (
+          <View style={[styles.item, itemStyle]}>{renderItem(item, index)}</View>
+        )}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewConfigRef.current}
+        snapToInterval={width}
+        decelerationRate="fast"
+      />
     </View>
   );
 };
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   item: {
-    width: Dimensions.get("window").width,
+    width,
     flex: 1,
   },
 });
