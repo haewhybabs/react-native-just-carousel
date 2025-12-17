@@ -5,6 +5,7 @@ import {
   Dimensions,
   StyleSheet,
   NativeScrollEvent,
+  NativeSyntheticEvent,
 } from "react-native";
 
 interface CarouselProps<T> {
@@ -48,15 +49,14 @@ const CarouselComponent = <T extends unknown>({
     return () => clearInterval(interval);
   }, [currentIndex, items.length, autoplay, autoplayInterval, scrollToIndex]);
 
-  const handleScroll = (event: NativeScrollEvent) => {
-    const contentOffsetX = event.contentOffset.x;
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x; // <-- add nativeEvent
     const index = Math.round(contentOffsetX / Dimensions.get("window").width);
     setCurrentIndex(index);
     if (onIndexChanged) {
       onIndexChanged(index);
     }
   };
-
   return (
     <View style={[styles.container, containerStyle]}>
       <ScrollView
@@ -64,7 +64,9 @@ const CarouselComponent = <T extends unknown>({
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
+        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) =>
+          handleScroll(event)
+        }
         scrollEventThrottle={16}
       >
         {items.map((item, index) => (
