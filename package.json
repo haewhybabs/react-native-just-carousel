@@ -20,8 +20,5 @@
     "name": "Ayobami Babalola",
     "email": "babalolaisaac@gmail.com"
   },
-  "license": "ISC",
-  "dependencies": {
-    "react-native": "^0.74.1"
-  }
+  "license": "ISC"
 }
