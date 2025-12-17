@@ -1,6 +1,6 @@
 {
   "name": "react-native-just-carousel",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A simple and easy-to-use carousel component for React Native, designed to provide a smooth and customizable experience for displaying content in a horizontal scrollable view.",
   "main": "App.tsx",
   "scripts": {
